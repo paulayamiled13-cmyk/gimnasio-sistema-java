@@ -6,9 +6,19 @@ login, mantenimiento de socios, membresías, pagos, asistencia, inventario y rep
 ## Credenciales de prueba
 
 - Usuario administrador: `admin`
-- Contraseña: `admin123`
 - Usuario recepcionista: `recepcion`
-- Contraseña: `recep123`
+
+La contraseña no se almacena en la base de datos. Para ingresar al sistema, se debe escribir una contraseña que cumpla las reglas de seguridad:
+
+- Longitud entre 8 y 30 caracteres.
+- Al menos una letra mayúscula.
+- Al menos una letra minúscula.
+- Al menos un número.
+- Debe incluir el carácter especial `!`.
+
+Ejemplo de contraseña válida para prueba:
+
+`Prueba2026!`
 
 ## Requisitos
 
