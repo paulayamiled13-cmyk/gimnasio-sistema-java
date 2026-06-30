@@ -7,7 +7,9 @@ import com.gimnasio.dao.SocioDAO;
 import com.gimnasio.model.Membresia;
 import com.gimnasio.model.Socio;
 import com.gimnasio.model.Usuario;
+import com.gimnasio.util.ReportePdfUtil;
 import com.gimnasio.util.SwingUtil;
+import com.toedter.calendar.JDateChooser;
 
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicButtonUI;
@@ -17,11 +19,14 @@ import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
 
 public class MembresiaPagoPanel extends JPanel {
 
@@ -30,16 +35,26 @@ public class MembresiaPagoPanel extends JPanel {
     private final MembresiaDAO membresiaDAO = new MembresiaDAO();
     private final PagoDAO pagoDAO = new PagoDAO();
 
+    private int idMembresiaSeleccionada = 0;
+    private int idSocioSeleccionado = 0;
+
     private final JTextField txtDni = new JTextField(10);
+
     private final JComboBox<String> cmbTipo = new JComboBox<>(
             new String[] { "Mensual", "Premium", "Trimestral", "Anual" });
-    private final JTextField txtInicio = new JTextField("2026-06-01");
-    private final JTextField txtFin = new JTextField("2026-06-30");
+
+    private final JDateChooser dateInicio = new JDateChooser();
+    private final JDateChooser dateFin = new JDateChooser();
+
     private final JTextField txtCosto = new JTextField("120.00");
-    private final JComboBox<String> cmbMetodo = new JComboBox<>(new String[] { "Efectivo", "Yape", "Plin", "Tarjeta" });
+
+    private final JComboBox<String> cmbMetodo = new JComboBox<>(
+            new String[] { "Efectivo", "Yape", "Plin", "Tarjeta" });
 
     private final JTable tableMembresias = new JTable();
     private final JTable tablePagos = new JTable();
+
+    private JButton btnRegistrarPago;
 
     private final JLabel lblEstadoCarga = new JLabel("Tablas listas para cargar información.");
 
@@ -47,6 +62,7 @@ public class MembresiaPagoPanel extends JPanel {
     private final Color NARANJA = new Color(255, 111, 0);
     private final Color VERDE = new Color(34, 139, 84);
     private final Color AZUL = new Color(37, 99, 235);
+    private final Color MORADO = new Color(124, 58, 237);
     private final Color GRIS_OSCURO = new Color(45, 45, 45);
     private final Color FONDO = new Color(245, 245, 245);
     private final Color BORDE = new Color(220, 220, 220);
@@ -57,6 +73,10 @@ public class MembresiaPagoPanel extends JPanel {
         setLayout(new BorderLayout());
         setBackground(FONDO);
         build();
+        configurarFechasIniciales();
+        actualizarCostoPorTipo();
+        actualizarFechaVencimientoPorTipo();
+        bloquearPago();
         cargarTablas();
     }
 
@@ -74,6 +94,14 @@ public class MembresiaPagoPanel extends JPanel {
 
         tablePagos.setModel(new DefaultTableModel(
                 new String[] { "ID", "DNI", "Socio", "Fecha", "Monto", "Método", "Estado" }, 0));
+
+        tableMembresias.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        tableMembresias.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                seleccionarMembresia();
+            }
+        });
 
         estilizarTabla(tableMembresias);
         estilizarTabla(tablePagos);
@@ -124,10 +152,22 @@ public class MembresiaPagoPanel extends JPanel {
 
         estilizarCampo(txtDni);
         estilizarCombo(cmbTipo);
-        estilizarCampo(txtInicio);
-        estilizarCampo(txtFin);
+        estilizarFecha(dateInicio);
+        estilizarFecha(dateFin);
         estilizarCampo(txtCosto);
         estilizarCombo(cmbMetodo);
+
+        txtCosto.setEditable(false);
+        txtCosto.setBackground(new Color(240, 240, 240));
+
+        dateFin.setEnabled(false);
+
+        cmbTipo.addActionListener(e -> {
+            actualizarCostoPorTipo();
+            actualizarFechaVencimientoPorTipo();
+        });
+
+        dateInicio.getDateEditor().addPropertyChangeListener("date", e -> actualizarFechaVencimientoPorTipo());
 
         form.add(label("DNI del socio"));
         form.add(txtDni);
@@ -135,11 +175,11 @@ public class MembresiaPagoPanel extends JPanel {
         form.add(label("Tipo de membresía"));
         form.add(cmbTipo);
 
-        form.add(label("Fecha inicio yyyy-mm-dd"));
-        form.add(txtInicio);
+        form.add(label("Fecha inicio"));
+        form.add(dateInicio);
 
-        form.add(label("Fecha vencimiento yyyy-mm-dd"));
-        form.add(txtFin);
+        form.add(label("Fecha vencimiento"));
+        form.add(dateFin);
 
         form.add(label("Costo / Monto"));
         form.add(txtCosto);
@@ -153,6 +193,80 @@ public class MembresiaPagoPanel extends JPanel {
         return card;
     }
 
+    private void configurarFechasIniciales() {
+        LocalDate hoy = LocalDate.now();
+
+        dateInicio.setDate(convertirDate(hoy));
+        dateInicio.setMinSelectableDate(convertirDate(hoy));
+
+        dateFin.setDate(convertirDate(hoy.plusMonths(1)));
+        dateFin.setMinSelectableDate(convertirDate(hoy.plusDays(1)));
+    }
+
+    private void actualizarCostoPorTipo() {
+        String tipo = cmbTipo.getSelectedItem().toString();
+
+        switch (tipo) {
+            case "Mensual":
+                txtCosto.setText("120.00");
+                break;
+            case "Premium":
+                txtCosto.setText("180.00");
+                break;
+            case "Trimestral":
+                txtCosto.setText("300.00");
+                break;
+            case "Anual":
+                txtCosto.setText("900.00");
+                break;
+            default:
+                txtCosto.setText("0.00");
+                break;
+        }
+    }
+
+    private void actualizarFechaVencimientoPorTipo() {
+        try {
+            if (dateInicio.getDate() == null) {
+                return;
+            }
+
+            LocalDate fechaInicio = convertirLocalDate(dateInicio.getDate());
+            String tipo = cmbTipo.getSelectedItem().toString();
+
+            LocalDate fechaFin;
+
+            switch (tipo) {
+                case "Mensual":
+                case "Premium":
+                    fechaFin = fechaInicio.plusMonths(1);
+                    break;
+                case "Trimestral":
+                    fechaFin = fechaInicio.plusMonths(3);
+                    break;
+                case "Anual":
+                    fechaFin = fechaInicio.plusYears(1);
+                    break;
+                default:
+                    fechaFin = fechaInicio.plusMonths(1);
+                    break;
+            }
+
+            dateFin.setDate(convertirDate(fechaFin));
+
+        } catch (Exception e) {
+            dateFin.setDate(null);
+        }
+    }
+
+    private Date convertirDate(LocalDate fecha) {
+        return Date.from(fecha.atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
+
+    private LocalDate convertirLocalDate(Date fecha) {
+        return fecha.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
     private JPanel crearAcciones() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
@@ -164,13 +278,15 @@ public class MembresiaPagoPanel extends JPanel {
         izquierda.setOpaque(false);
 
         JButton btnRegistrar = boton("Registrar membresía", VERDE, new Color(46, 160, 95), 180);
-        JButton btnPago = boton("Registrar pago", AZUL, new Color(59, 130, 246), 150);
-        JButton btnAnular = boton("Anular pago", ROJO, NARANJA, 150);
+        btnRegistrarPago = boton("Registrar pago", AZUL, new Color(59, 130, 246), 150);
+        JButton btnAnular = boton("Anular pago", ROJO, NARANJA, 140);
+        JButton btnPdf = boton("Generar PDF", MORADO, new Color(147, 51, 234), 140);
         JButton btnActualizar = boton("Actualizar tablas", GRIS_OSCURO, new Color(70, 70, 70), 160);
 
         izquierda.add(btnRegistrar);
-        izquierda.add(btnPago);
+        izquierda.add(btnRegistrarPago);
         izquierda.add(btnAnular);
+        izquierda.add(btnPdf);
         izquierda.add(btnActualizar);
 
         JPanel derecha = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
@@ -185,8 +301,9 @@ public class MembresiaPagoPanel extends JPanel {
         panel.add(derecha, BorderLayout.EAST);
 
         btnRegistrar.addActionListener(e -> registrarMembresia());
-        btnPago.addActionListener(e -> registrarPago());
+        btnRegistrarPago.addActionListener(e -> registrarPago());
         btnAnular.addActionListener(e -> anularPago());
+        btnPdf.addActionListener(e -> generarPdfPagoSeleccionado());
         btnActualizar.addActionListener(e -> cargarTablas());
 
         return panel;
@@ -242,6 +359,13 @@ public class MembresiaPagoPanel extends JPanel {
         combo.setBorder(BorderFactory.createLineBorder(new Color(205, 205, 205), 1));
     }
 
+    private void estilizarFecha(JDateChooser fecha) {
+        fecha.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        fecha.setDateFormatString("yyyy-MM-dd");
+        fecha.setBackground(new Color(250, 250, 250));
+        fecha.setBorder(BorderFactory.createLineBorder(new Color(205, 205, 205), 1));
+    }
+
     private JButton boton(String texto, Color base, Color hover, int ancho) {
         JButton btn = new JButton(texto);
         btn.setUI(new BasicButtonUI());
@@ -258,12 +382,16 @@ public class MembresiaPagoPanel extends JPanel {
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                btn.setBackground(hover);
+                if (btn.isEnabled()) {
+                    btn.setBackground(hover);
+                }
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                btn.setBackground(base);
+                if (btn.isEnabled()) {
+                    btn.setBackground(base);
+                }
             }
         });
 
@@ -291,6 +419,7 @@ public class MembresiaPagoPanel extends JPanel {
             @Override
             public Component getTableCellRendererComponent(
                     JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+
                 JLabel lbl = (JLabel) super.getTableCellRendererComponent(
                         table, value, isSelected, hasFocus, row, column);
 
@@ -309,6 +438,7 @@ public class MembresiaPagoPanel extends JPanel {
             @Override
             public Component getTableCellRendererComponent(
                     JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+
                 Component c = super.getTableCellRendererComponent(
                         table, value, isSelected, hasFocus, row, column);
 
@@ -343,12 +473,129 @@ public class MembresiaPagoPanel extends JPanel {
         });
     }
 
+    private void bloquearPago() {
+        cmbMetodo.setEnabled(false);
+
+        if (btnRegistrarPago != null) {
+            btnRegistrarPago.setEnabled(false);
+            btnRegistrarPago.setBackground(new Color(150, 150, 150));
+            btnRegistrarPago.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+        }
+    }
+
+    private void habilitarPago() {
+        cmbMetodo.setEnabled(true);
+
+        if (btnRegistrarPago != null) {
+            btnRegistrarPago.setEnabled(true);
+            btnRegistrarPago.setBackground(AZUL);
+            btnRegistrarPago.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        }
+    }
+
+    private void seleccionarMembresia() {
+        int row = tableMembresias.getSelectedRow();
+
+        if (row < 0) {
+            idMembresiaSeleccionada = 0;
+            idSocioSeleccionado = 0;
+            bloquearPago();
+            return;
+        }
+
+        idMembresiaSeleccionada = Integer.parseInt(tableMembresias.getValueAt(row, 0).toString());
+
+        String dni = tableMembresias.getValueAt(row, 1).toString();
+        String tipo = tableMembresias.getValueAt(row, 3).toString();
+        Object fechaInicioObj = tableMembresias.getValueAt(row, 4);
+        Object fechaFinObj = tableMembresias.getValueAt(row, 5);
+        String costo = tableMembresias.getValueAt(row, 6).toString();
+        String estado = tableMembresias.getValueAt(row, 7).toString();
+
+        txtDni.setText(dni);
+        cmbTipo.setSelectedItem(tipo);
+        txtCosto.setText(costo);
+
+        if (fechaInicioObj instanceof java.sql.Date) {
+            dateInicio.setDate((java.sql.Date) fechaInicioObj);
+        }
+
+        if (fechaFinObj instanceof java.sql.Date) {
+            dateFin.setDate((java.sql.Date) fechaFinObj);
+        }
+
+        try {
+            Socio socio = socioDAO.buscarPorDni(dni);
+
+            if (socio != null) {
+                idSocioSeleccionado = socio.getIdSocio();
+            } else {
+                idSocioSeleccionado = 0;
+            }
+
+            if (estado.equalsIgnoreCase("Vigente")) {
+                habilitarPago();
+            } else {
+                bloquearPago();
+                SwingUtil.error(this, "Solo puede registrar pago de una membresía vigente.");
+            }
+
+        } catch (Exception e) {
+            idSocioSeleccionado = 0;
+            bloquearPago();
+        }
+    }
+
     private void registrarMembresia() {
         try {
-            Socio socio = socioDAO.buscarPorDni(txtDni.getText().trim());
+            tableMembresias.clearSelection();
+            idMembresiaSeleccionada = 0;
+            idSocioSeleccionado = 0;
+            bloquearPago();
+
+            actualizarCostoPorTipo();
+            actualizarFechaVencimientoPorTipo();
+
+            String dni = txtDni.getText().trim();
+
+            if (dni.isEmpty()) {
+                SwingUtil.error(this, "Ingrese el DNI del socio.");
+                txtDni.requestFocus();
+                return;
+            }
+
+            if (!dni.matches("\\d{8}")) {
+                SwingUtil.error(this, "El DNI debe tener una longitud física de 8 dígitos numéricos.");
+                txtDni.requestFocus();
+                return;
+            }
+
+            Socio socio = socioDAO.buscarPorDni(dni);
 
             if (socio == null) {
                 SwingUtil.error(this, "No existe socio con ese DNI.");
+                txtDni.requestFocus();
+                return;
+            }
+
+            if (dateInicio.getDate() == null || dateFin.getDate() == null) {
+                SwingUtil.error(this, "Seleccione la fecha de inicio y vencimiento.");
+                return;
+            }
+
+            LocalDate fechaInicio = convertirLocalDate(dateInicio.getDate());
+            LocalDate fechaFin = convertirLocalDate(dateFin.getDate());
+            LocalDate fechaActual = LocalDate.now();
+
+            if (fechaInicio.isBefore(fechaActual)) {
+                SwingUtil.error(this, "La fecha de inicio no puede ser anterior a la fecha actual.");
+                dateInicio.requestFocus();
+                return;
+            }
+
+            if (!fechaFin.isAfter(fechaInicio)) {
+                SwingUtil.error(this, "La fecha de vencimiento debe ser posterior a la fecha de inicio.");
+                dateFin.requestFocus();
                 return;
             }
 
@@ -356,19 +603,17 @@ public class MembresiaPagoPanel extends JPanel {
                     0,
                     socio.getIdSocio(),
                     cmbTipo.getSelectedItem().toString(),
-                    LocalDate.parse(txtInicio.getText().trim()),
-                    LocalDate.parse(txtFin.getText().trim()),
+                    fechaInicio,
+                    fechaFin,
                     new BigDecimal(txtCosto.getText().trim()),
                     "Vigente");
 
-            if (!m.getFechaVencimiento().isAfter(m.getFechaInicio())) {
-                SwingUtil.error(this, "La fecha de vencimiento debe ser posterior a la fecha de inicio.");
-                return;
-            }
-
             membresiaDAO.registrar(m);
             cargarTablas();
-            SwingUtil.info(this, "Membresía registrada correctamente.");
+            bloquearPago();
+
+            SwingUtil.info(this,
+                    "Membresía registrada correctamente. Para registrar el pago, seleccione la membresía en la tabla.");
 
         } catch (Exception ex) {
             SwingUtil.error(this, "No se pudo registrar membresía: " + ex.getMessage());
@@ -377,33 +622,85 @@ public class MembresiaPagoPanel extends JPanel {
 
     private void registrarPago() {
         try {
-            Socio socio = socioDAO.buscarPorDni(txtDni.getText().trim());
-
-            if (socio == null) {
-                SwingUtil.error(this, "No existe socio con ese DNI.");
+            if (idMembresiaSeleccionada == 0) {
+                SwingUtil.error(this, "Seleccione primero una membresía registrada en la tabla.");
+                bloquearPago();
                 return;
             }
 
-            Membresia activa = membresiaDAO.membresiaActivaPorSocio(socio.getIdSocio());
-
-            if (activa == null) {
-                SwingUtil.error(this, "El socio no tiene membresía vigente. Registre primero una membresía.");
+            if (idSocioSeleccionado == 0) {
+                SwingUtil.error(this, "Seleccione una membresía válida para registrar el pago.");
+                bloquearPago();
                 return;
             }
+
+            int row = tableMembresias.getSelectedRow();
+
+            if (row < 0) {
+                SwingUtil.error(this, "Seleccione primero una membresía registrada en la tabla.");
+                bloquearPago();
+                return;
+            }
+
+            String estadoMembresia = tableMembresias.getValueAt(row, 7).toString();
+
+            if (!estadoMembresia.equalsIgnoreCase("Vigente")) {
+                SwingUtil.error(this, "Solo se puede registrar pago de una membresía vigente.");
+                bloquearPago();
+                return;
+            }
+
+            if (existePagoRegistrado(idMembresiaSeleccionada)) {
+                SwingUtil.error(this, "Esta membresía ya tiene un pago registrado.");
+                bloquearPago();
+                tableMembresias.clearSelection();
+                return;
+            }
+
+            BigDecimal monto = new BigDecimal(tableMembresias.getValueAt(row, 6).toString());
 
             pagoDAO.registrar(
-                    socio.getIdSocio(),
-                    activa.getIdMembresia(),
+                    idSocioSeleccionado,
+                    idMembresiaSeleccionada,
                     LocalDate.now(),
-                    new BigDecimal(txtCosto.getText().trim()),
+                    monto,
                     cmbMetodo.getSelectedItem().toString());
 
             cargarTablas();
+
+            tableMembresias.clearSelection();
+            idMembresiaSeleccionada = 0;
+            idSocioSeleccionado = 0;
+            bloquearPago();
+
             SwingUtil.info(this, "Pago registrado correctamente.");
 
         } catch (Exception ex) {
             SwingUtil.error(this, "No se pudo registrar pago: " + ex.getMessage());
         }
+    }
+
+    private boolean existePagoRegistrado(int idMembresia) throws Exception {
+        String sql = """
+                SELECT COUNT(*) AS total
+                FROM pago
+                WHERE id_membresia = ?
+                  AND estado_pago = 'Registrado'
+                """;
+
+        try (Connection cn = Db.getConnection();
+                PreparedStatement ps = cn.prepareStatement(sql)) {
+
+            ps.setInt(1, idMembresia);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("total") > 0;
+                }
+            }
+        }
+
+        return false;
     }
 
     private void anularPago() {
@@ -420,10 +717,48 @@ public class MembresiaPagoPanel extends JPanel {
             if (SwingUtil.confirm(this, "¿Desea anular el pago seleccionado?")) {
                 pagoDAO.anular(id);
                 cargarTablas();
+                bloquearPago();
             }
 
         } catch (Exception ex) {
             SwingUtil.error(this, ex.getMessage());
+        }
+    }
+
+    private void generarPdfPagoSeleccionado() {
+        try {
+            int row = tablePagos.getSelectedRow();
+
+            if (row < 0) {
+                SwingUtil.error(this, "Seleccione un pago registrado para generar el PDF.");
+                return;
+            }
+
+            int idPago = Integer.parseInt(tablePagos.getValueAt(row, 0).toString());
+            String estadoPago = tablePagos.getValueAt(row, 6).toString();
+
+            if (!estadoPago.equalsIgnoreCase("Registrado")) {
+                SwingUtil.error(this, "Solo se puede generar PDF de pagos con estado Registrado.");
+                return;
+            }
+
+            Object[] datos = pagoDAO.obtenerDatosReportePago(idPago);
+
+            if (datos == null) {
+                SwingUtil.error(this, "No se encontraron datos del pago seleccionado.");
+                return;
+            }
+
+            File pdf = ReportePdfUtil.generarReportePagoMembresia(datos);
+
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(pdf);
+            }
+
+            SwingUtil.info(this, "Reporte PDF generado correctamente:\n" + pdf.getAbsolutePath());
+
+        } catch (Exception ex) {
+            SwingUtil.error(this, "No se pudo generar el PDF: " + ex.getMessage());
         }
     }
 

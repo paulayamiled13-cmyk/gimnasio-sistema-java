@@ -101,8 +101,17 @@ public class MainFrame extends JFrame {
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 25));
         lblTitulo.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel lblSubtitulo = new JLabel(
-                "Panel administrativo  |  Control de socios, membresías, asistencia, inventario y reportes");
+        String subtitulo;
+
+        if (esAdministrador()) {
+            subtitulo = "Panel administrativo  |  Control de socios, membresías, asistencia, inventario y reportes";
+        } else if (esRecepcionista()) {
+            subtitulo = "Panel de recepción  |  Atención de socios, membresías, pagos y asistencia";
+        } else {
+            subtitulo = "Panel del sistema  |  Acceso según perfil de usuario";
+        }
+
+        JLabel lblSubtitulo = new JLabel(subtitulo);
         lblSubtitulo.setForeground(new Color(220, 220, 220));
         lblSubtitulo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         lblSubtitulo.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -159,26 +168,35 @@ public class MainFrame extends JFrame {
         btnSocios = crearBotonMenu("Socios");
         btnMembresias = crearBotonMenu("Membresías y pagos");
         btnAsistencia = crearBotonMenu("Asistencia");
-        btnInventario = crearBotonMenu("Inventario");
-        btnReportes = crearBotonMenu("Reportes");
 
         btnSocios.addActionListener(e -> mostrarModulo("Socios"));
         btnMembresias.addActionListener(e -> mostrarModulo("Membresías y pagos"));
         btnAsistencia.addActionListener(e -> mostrarModulo("Asistencia"));
-        btnInventario.addActionListener(e -> mostrarModulo("Inventario"));
-        btnReportes.addActionListener(e -> mostrarModulo("Reportes"));
 
         menuPanel.add(lblMenu);
         menuPanel.add(Box.createVerticalStrut(25));
+
         menuPanel.add(btnSocios);
         menuPanel.add(Box.createVerticalStrut(12));
+
         menuPanel.add(btnMembresias);
         menuPanel.add(Box.createVerticalStrut(12));
+
         menuPanel.add(btnAsistencia);
         menuPanel.add(Box.createVerticalStrut(12));
-        menuPanel.add(btnInventario);
-        menuPanel.add(Box.createVerticalStrut(12));
-        menuPanel.add(btnReportes);
+
+        if (esAdministrador()) {
+            btnInventario = crearBotonMenu("Inventario");
+            btnReportes = crearBotonMenu("Reportes");
+
+            btnInventario.addActionListener(e -> mostrarModulo("Inventario"));
+            btnReportes.addActionListener(e -> mostrarModulo("Reportes"));
+
+            menuPanel.add(btnInventario);
+            menuPanel.add(Box.createVerticalStrut(12));
+
+            menuPanel.add(btnReportes);
+        }
 
         JPanel footer = new JPanel();
         footer.setOpaque(false);
@@ -196,11 +214,17 @@ public class MainFrame extends JFrame {
         lblEstado.setForeground(VERDE);
         lblEstado.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
+        JLabel lblPerfil = new JLabel("Perfil: " + usuario.getRol());
+        lblPerfil.setForeground(new Color(180, 180, 180));
+        lblPerfil.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+
         footer.add(lblSistema);
         footer.add(Box.createVerticalStrut(8));
         footer.add(lblVersion);
         footer.add(Box.createVerticalStrut(10));
         footer.add(lblEstado);
+        footer.add(Box.createVerticalStrut(10));
+        footer.add(lblPerfil);
 
         sidebar.add(menuPanel, BorderLayout.NORTH);
         sidebar.add(footer, BorderLayout.SOUTH);
@@ -209,6 +233,15 @@ public class MainFrame extends JFrame {
     }
 
     private void mostrarModulo(String modulo) {
+        if (!tienePermiso(modulo)) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "No tiene permiso para acceder al módulo: " + modulo,
+                    "Acceso restringido",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         marcarMenuActivo(modulo);
         contentPanel.removeAll();
 
@@ -246,6 +279,14 @@ public class MainFrame extends JFrame {
                 descripcion = "Consulta de socios activos, morosidad, inventario e ingresos mensuales del sistema.";
                 panelModulo = new ReportesPanel();
                 break;
+
+            default:
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Módulo no encontrado.",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
         }
 
         contentPanel.add(crearContenedorModulo(titulo, descripcion, panelModulo), BorderLayout.CENTER);
@@ -315,27 +356,55 @@ public class MainFrame extends JFrame {
     }
 
     private void marcarMenuActivo(String modulo) {
-        btnSocios.setBackground(GRIS_MENU);
-        btnMembresias.setBackground(GRIS_MENU);
-        btnAsistencia.setBackground(GRIS_MENU);
-        btnInventario.setBackground(GRIS_MENU);
-        btnReportes.setBackground(GRIS_MENU);
+        if (btnSocios != null) {
+            btnSocios.setBackground(GRIS_MENU);
+        }
+
+        if (btnMembresias != null) {
+            btnMembresias.setBackground(GRIS_MENU);
+        }
+
+        if (btnAsistencia != null) {
+            btnAsistencia.setBackground(GRIS_MENU);
+        }
+
+        if (btnInventario != null) {
+            btnInventario.setBackground(GRIS_MENU);
+        }
+
+        if (btnReportes != null) {
+            btnReportes.setBackground(GRIS_MENU);
+        }
 
         switch (modulo) {
             case "Socios":
-                btnSocios.setBackground(ROJO);
+                if (btnSocios != null) {
+                    btnSocios.setBackground(ROJO);
+                }
                 break;
+
             case "Membresías y pagos":
-                btnMembresias.setBackground(ROJO);
+                if (btnMembresias != null) {
+                    btnMembresias.setBackground(ROJO);
+                }
                 break;
+
             case "Asistencia":
-                btnAsistencia.setBackground(ROJO);
+                if (btnAsistencia != null) {
+                    btnAsistencia.setBackground(ROJO);
+                }
                 break;
+
             case "Inventario":
-                btnInventario.setBackground(ROJO);
+                if (btnInventario != null) {
+                    btnInventario.setBackground(ROJO);
+                }
                 break;
+
             case "Reportes":
-                btnReportes.setBackground(ROJO);
+                if (btnReportes != null) {
+                    btnReportes.setBackground(ROJO);
+                }
                 break;
         }
     }
@@ -400,5 +469,27 @@ public class MainFrame extends JFrame {
         });
 
         return btn;
+    }
+
+    private boolean esAdministrador() {
+        return usuario.getRol() != null && usuario.getRol().equalsIgnoreCase("Administrador");
+    }
+
+    private boolean esRecepcionista() {
+        return usuario.getRol() != null && usuario.getRol().equalsIgnoreCase("Recepcionista");
+    }
+
+    private boolean tienePermiso(String modulo) {
+        if (esAdministrador()) {
+            return true;
+        }
+
+        if (esRecepcionista()) {
+            return modulo.equals("Socios")
+                    || modulo.equals("Membresías y pagos")
+                    || modulo.equals("Asistencia");
+        }
+
+        return false;
     }
 }

@@ -36,6 +36,7 @@ public class ProductoPanel extends JPanel {
     private final Color VERDE = new Color(34, 139, 84);
     private final Color AZUL = new Color(37, 99, 235);
     private final Color GRIS_OSCURO = new Color(45, 45, 45);
+    private final Color MARRON = new Color(120, 0, 0);
     private final Color FONDO = new Color(245, 245, 245);
     private final Color BORDE = new Color(220, 220, 220);
     private final Color NEGRO_TABLA = new Color(25, 25, 25);
@@ -127,12 +128,14 @@ public class ProductoPanel extends JPanel {
         JPanel izquierda = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         izquierda.setOpaque(false);
 
-        JButton btnNuevo = boton("Nuevo", GRIS_OSCURO, new Color(70, 70, 70), 130);
-        JButton btnGuardar = boton("Guardar", VERDE, new Color(46, 160, 95), 130);
-        JButton btnEliminar = boton("Desactivar", ROJO, NARANJA, 140);
+        JButton btnLimpiar = boton("Limpiar", GRIS_OSCURO, new Color(70, 70, 70), 110);
+        JButton btnGuardar = boton("Guardar", VERDE, new Color(46, 160, 95), 110);
+        JButton btnDesactivar = boton("Desactivar", ROJO, NARANJA, 130);
+        JButton btnEliminar = boton("Eliminar", MARRON, ROJO, 120);
 
-        izquierda.add(btnNuevo);
+        izquierda.add(btnLimpiar);
         izquierda.add(btnGuardar);
+        izquierda.add(btnDesactivar);
         izquierda.add(btnEliminar);
 
         JPanel derecha = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
@@ -150,9 +153,10 @@ public class ProductoPanel extends JPanel {
         panel.add(izquierda, BorderLayout.WEST);
         panel.add(derecha, BorderLayout.EAST);
 
-        btnNuevo.addActionListener(e -> limpiar());
+        btnLimpiar.addActionListener(e -> limpiar());
         btnGuardar.addActionListener(e -> guardar());
-        btnEliminar.addActionListener(e -> eliminar());
+        btnDesactivar.addActionListener(e -> desactivarProducto());
+        btnEliminar.addActionListener(e -> eliminarProductoFisico());
         btnBuscar.addActionListener(e -> cargar());
 
         return panel;
@@ -358,6 +362,25 @@ public class ProductoPanel extends JPanel {
         try {
             if (txtNombre.getText().trim().isEmpty()) {
                 SwingUtil.error(this, "Ingrese el nombre del producto.");
+                txtNombre.requestFocus();
+                return;
+            }
+
+            if (txtDescripcion.getText().trim().isEmpty()) {
+                SwingUtil.error(this, "Ingrese la descripción del producto.");
+                txtDescripcion.requestFocus();
+                return;
+            }
+
+            if (txtPrecio.getText().trim().isEmpty()) {
+                SwingUtil.error(this, "Ingrese el precio del producto.");
+                txtPrecio.requestFocus();
+                return;
+            }
+
+            if (txtStock.getText().trim().isEmpty()) {
+                SwingUtil.error(this, "Ingrese el stock del producto.");
+                txtStock.requestFocus();
                 return;
             }
 
@@ -365,6 +388,15 @@ public class ProductoPanel extends JPanel {
 
             if (stock < 0) {
                 SwingUtil.error(this, "El stock no puede ser negativo.");
+                txtStock.requestFocus();
+                return;
+            }
+
+            BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
+
+            if (precio.compareTo(BigDecimal.ZERO) < 0) {
+                SwingUtil.error(this, "El precio no puede ser negativo.");
+                txtPrecio.requestFocus();
                 return;
             }
 
@@ -373,7 +405,7 @@ public class ProductoPanel extends JPanel {
                     usuario.getIdUsuario(),
                     txtNombre.getText().trim(),
                     txtDescripcion.getText().trim(),
-                    new BigDecimal(txtPrecio.getText().trim()),
+                    precio,
                     stock,
                     cmbEstado.getSelectedItem().toString());
 
@@ -387,26 +419,62 @@ public class ProductoPanel extends JPanel {
             limpiar();
             cargar();
 
+        } catch (NumberFormatException ex) {
+            SwingUtil.error(this, "El precio y el stock deben ser valores numéricos válidos.");
         } catch (Exception ex) {
             SwingUtil.error(this, "No se pudo guardar: " + ex.getMessage());
         }
     }
 
-    private void eliminar() {
+    private void desactivarProducto() {
         try {
             if (txtId.getText().isEmpty()) {
                 SwingUtil.error(this, "Seleccione un producto de la tabla para desactivarlo.");
                 return;
             }
 
-            if (SwingUtil.confirm(this, "¿Desea desactivar el producto seleccionado?")) {
+            String nombreProducto = txtNombre.getText().trim();
+
+            if (SwingUtil.confirm(this,
+                    "¿Desea desactivar el producto seleccionado?\n\n" +
+                            "Producto: " + nombreProducto + "\n\n" +
+                            "Esta acción no borra el registro, solo cambia su estado a Inactivo.")) {
+
                 dao.desactivar(Integer.parseInt(txtId.getText()));
                 limpiar();
                 cargar();
+
+                SwingUtil.info(this, "Producto desactivado correctamente. Se realizó eliminación lógica.");
             }
 
         } catch (Exception ex) {
-            SwingUtil.error(this, ex.getMessage());
+            SwingUtil.error(this, "No se pudo desactivar: " + ex.getMessage());
+        }
+    }
+
+    private void eliminarProductoFisico() {
+        try {
+            if (txtId.getText().isEmpty()) {
+                SwingUtil.error(this, "Seleccione un producto de la tabla para eliminarlo.");
+                return;
+            }
+
+            String nombreProducto = txtNombre.getText().trim();
+
+            if (SwingUtil.confirm(this,
+                    "¿Desea eliminar definitivamente el producto seleccionado?\n\n" +
+                            "Producto: " + nombreProducto + "\n\n" +
+                            "Esta acción borra el registro de la tabla producto.")) {
+
+                dao.eliminarFisico(Integer.parseInt(txtId.getText()));
+                limpiar();
+                cargar();
+
+                SwingUtil.info(this, "Producto eliminado correctamente. Se realizó eliminación física.");
+            }
+
+        } catch (Exception ex) {
+            SwingUtil.error(this, "No se pudo eliminar: " + ex.getMessage());
         }
     }
 

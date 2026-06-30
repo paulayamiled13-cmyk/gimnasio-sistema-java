@@ -10,6 +10,9 @@ import javax.swing.plaf.basic.BasicButtonUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.DocumentFilter;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -46,6 +49,7 @@ public class SocioPanel extends JPanel {
         setLayout(new BorderLayout(0, 8));
         setBackground(FONDO);
         build();
+        aplicarLongitudFisica();
         cargar();
     }
 
@@ -74,6 +78,16 @@ public class SocioPanel extends JPanel {
 
         add(top, BorderLayout.NORTH);
         add(panelTabla, BorderLayout.CENTER);
+    }
+
+    private void aplicarLongitudFisica() {
+        limitarTexto(txtNombres, 80);
+        limitarTexto(txtApellidos, 80);
+        limitarNumeros(txtDni, 8);
+        limitarNumeros(txtTelefono, 9);
+        limitarTexto(txtCorreo, 100);
+        limitarTexto(txtDireccion, 150);
+        limitarTexto(txtBuscar, 80);
     }
 
     private JPanel crearFormulario() {
@@ -135,11 +149,11 @@ public class SocioPanel extends JPanel {
         JPanel izquierda = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         izquierda.setOpaque(false);
 
-        JButton btnNuevo = boton("Nuevo", GRIS_OSCURO, new Color(70, 70, 70), 130);
+        JButton btnLimpiar = boton("Limpiar", GRIS_OSCURO, new Color(70, 70, 70), 130);
         JButton btnGuardar = boton("Guardar", VERDE, new Color(46, 160, 95), 130);
         JButton btnBaja = boton("Dar de baja", ROJO, NARANJA, 140);
 
-        izquierda.add(btnNuevo);
+        izquierda.add(btnLimpiar);
         izquierda.add(btnGuardar);
         izquierda.add(btnBaja);
 
@@ -158,7 +172,7 @@ public class SocioPanel extends JPanel {
         panel.add(izquierda, BorderLayout.WEST);
         panel.add(derecha, BorderLayout.EAST);
 
-        btnNuevo.addActionListener(e -> limpiar());
+        btnLimpiar.addActionListener(e -> limpiar());
         btnGuardar.addActionListener(e -> guardar());
         btnBaja.addActionListener(e -> baja());
         btnBuscar.addActionListener(e -> cargar());
@@ -357,23 +371,58 @@ public class SocioPanel extends JPanel {
 
     private void guardar() {
         try {
-            if (txtNombres.getText().trim().isEmpty()
-                    || txtApellidos.getText().trim().isEmpty()
-                    || txtDni.getText().trim().length() != 8) {
+            String nombres = txtNombres.getText().trim();
+            String apellidos = txtApellidos.getText().trim();
+            String dni = txtDni.getText().trim();
+            String telefono = txtTelefono.getText().trim();
+            String correo = txtCorreo.getText().trim();
+            String direccion = txtDireccion.getText().trim();
 
-                SwingUtil.error(this, "Ingrese nombres, apellidos y DNI válido de 8 dígitos.");
+            if (nombres.isEmpty()) {
+                SwingUtil.error(this, "Ingrese los nombres del socio.");
+                txtNombres.requestFocus();
+                return;
+            }
+
+            if (apellidos.isEmpty()) {
+                SwingUtil.error(this, "Ingrese los apellidos del socio.");
+                txtApellidos.requestFocus();
+                return;
+            }
+
+            if (!dni.matches("\\d{8}")) {
+                SwingUtil.error(this, "El DNI debe tener una longitud física de 8 dígitos numéricos.");
+                txtDni.requestFocus();
+                return;
+            }
+
+            if (!telefono.matches("9\\d{8}")) {
+                SwingUtil.error(this, "El teléfono debe tener una longitud física de 9 dígitos y empezar con 9.");
+                txtTelefono.requestFocus();
+                return;
+            }
+
+            if (!correo.matches("^[A-Za-z0-9._%+-]+@gmail\\.com$")) {
+                SwingUtil.error(this, "El correo debe ser válido y terminar en @gmail.com.");
+                txtCorreo.requestFocus();
+                return;
+            }
+
+            if (direccion.isEmpty()) {
+                SwingUtil.error(this, "Ingrese la dirección del socio.");
+                txtDireccion.requestFocus();
                 return;
             }
 
             Socio s = new Socio(
                     txtId.getText().isEmpty() ? 0 : Integer.parseInt(txtId.getText()),
                     usuario.getIdUsuario(),
-                    txtNombres.getText().trim(),
-                    txtApellidos.getText().trim(),
-                    txtDni.getText().trim(),
-                    txtTelefono.getText().trim(),
-                    txtCorreo.getText().trim(),
-                    txtDireccion.getText().trim(),
+                    nombres,
+                    apellidos,
+                    dni,
+                    telefono,
+                    correo,
+                    direccion,
                     cmbEstado.getSelectedItem().toString());
 
             if (s.getIdSocio() == 0) {
@@ -419,5 +468,79 @@ public class SocioPanel extends JPanel {
         txtDireccion.setText("");
         cmbEstado.setSelectedIndex(0);
         table.clearSelection();
+    }
+
+    private void limitarTexto(JTextField campo, int maximo) {
+        ((AbstractDocument) campo.getDocument()).setDocumentFilter(new DocumentFilter() {
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr)
+                    throws javax.swing.text.BadLocationException {
+                if (string == null) {
+                    return;
+                }
+
+                int nuevaLongitud = fb.getDocument().getLength() + string.length();
+
+                if (nuevaLongitud <= maximo) {
+                    super.insertString(fb, offset, string, attr);
+                }
+            }
+
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+                    throws javax.swing.text.BadLocationException {
+                if (text == null) {
+                    return;
+                }
+
+                int longitudActual = fb.getDocument().getLength();
+                int nuevaLongitud = longitudActual - length + text.length();
+
+                if (nuevaLongitud <= maximo) {
+                    super.replace(fb, offset, length, text, attrs);
+                }
+            }
+        });
+    }
+
+    private void limitarNumeros(JTextField campo, int maximo) {
+        ((AbstractDocument) campo.getDocument()).setDocumentFilter(new DocumentFilter() {
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr)
+                    throws javax.swing.text.BadLocationException {
+                if (string == null) {
+                    return;
+                }
+
+                if (!string.matches("\\d+")) {
+                    return;
+                }
+
+                int nuevaLongitud = fb.getDocument().getLength() + string.length();
+
+                if (nuevaLongitud <= maximo) {
+                    super.insertString(fb, offset, string, attr);
+                }
+            }
+
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+                    throws javax.swing.text.BadLocationException {
+                if (text == null) {
+                    return;
+                }
+
+                if (!text.matches("\\d*")) {
+                    return;
+                }
+
+                int longitudActual = fb.getDocument().getLength();
+                int nuevaLongitud = longitudActual - length + text.length();
+
+                if (nuevaLongitud <= maximo) {
+                    super.replace(fb, offset, length, text, attrs);
+                }
+            }
+        });
     }
 }

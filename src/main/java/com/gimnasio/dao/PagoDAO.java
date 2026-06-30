@@ -10,7 +10,9 @@ import java.util.List;
 
 public class PagoDAO {
 
-    public void registrar(int idSocio, int idMembresia, LocalDate fechaPago, BigDecimal monto, String metodo) throws SQLException {
+    public void registrar(int idSocio, int idMembresia, LocalDate fechaPago, BigDecimal monto, String metodo)
+            throws SQLException {
+
         String sql = """
                 INSERT INTO pago
                 (id_socio, id_membresia, fecha_pago, monto, metodo_pago, estado_pago)
@@ -18,7 +20,7 @@ public class PagoDAO {
                 """;
 
         try (Connection cn = Db.getConnection();
-             PreparedStatement ps = cn.prepareStatement(sql)) {
+                PreparedStatement ps = cn.prepareStatement(sql)) {
 
             ps.setInt(1, idSocio);
             ps.setInt(2, idMembresia);
@@ -38,7 +40,7 @@ public class PagoDAO {
                 """;
 
         try (Connection cn = Db.getConnection();
-             PreparedStatement ps = cn.prepareStatement(sql)) {
+                PreparedStatement ps = cn.prepareStatement(sql)) {
 
             ps.setInt(1, idPago);
             ps.executeUpdate();
@@ -63,11 +65,11 @@ public class PagoDAO {
                 """;
 
         try (Connection cn = Db.getConnection();
-             PreparedStatement ps = cn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+                PreparedStatement ps = cn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
-                lista.add(new Object[]{
+                lista.add(new Object[] {
                         rs.getInt("id_pago"),
                         rs.getString("dni"),
                         rs.getString("socio"),
@@ -80,5 +82,54 @@ public class PagoDAO {
         }
 
         return lista;
+    }
+
+    public Object[] obtenerDatosReportePago(int idPago) throws SQLException {
+        String sql = """
+                SELECT
+                    p.id_pago,
+                    s.dni,
+                    CONCAT(s.nombres, ' ', s.apellidos) AS socio,
+                    m.tipo_membresia,
+                    m.fecha_inicio,
+                    m.fecha_vencimiento,
+                    m.costo,
+                    m.estado AS estado_membresia,
+                    p.fecha_pago,
+                    p.monto,
+                    p.metodo_pago,
+                    p.estado_pago
+                FROM pago p
+                INNER JOIN socio s ON s.id_socio = p.id_socio
+                INNER JOIN membresia m ON m.id_membresia = p.id_membresia
+                WHERE p.id_pago = ?
+                """;
+
+        try (Connection cn = Db.getConnection();
+                PreparedStatement ps = cn.prepareStatement(sql)) {
+
+            ps.setInt(1, idPago);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new Object[] {
+                            rs.getInt("id_pago"),
+                            rs.getString("dni"),
+                            rs.getString("socio"),
+                            rs.getString("tipo_membresia"),
+                            rs.getDate("fecha_inicio"),
+                            rs.getDate("fecha_vencimiento"),
+                            rs.getBigDecimal("costo"),
+                            rs.getString("estado_membresia"),
+                            rs.getDate("fecha_pago"),
+                            rs.getBigDecimal("monto"),
+                            rs.getString("metodo_pago"),
+                            rs.getString("estado_pago")
+                    };
+                }
+            }
+        }
+
+        return null;
     }
 }

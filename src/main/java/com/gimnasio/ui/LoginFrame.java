@@ -2,262 +2,303 @@ package com.gimnasio.ui;
 
 import com.gimnasio.dao.UsuarioDAO;
 import com.gimnasio.model.Usuario;
-import com.gimnasio.util.SwingUtil;
+import com.gimnasio.util.PasswordUtil;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.basic.BasicButtonUI;
-import javax.swing.plaf.basic.BasicPasswordFieldUI;
-import javax.swing.plaf.basic.BasicTextFieldUI;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.net.URL;
 
 public class LoginFrame extends JFrame {
 
     private JTextField txtUsuario;
     private JPasswordField txtClave;
 
-    private final Color ROJO = new Color(220, 38, 38);
+    private final Color NEGRO = new Color(10, 10, 10);
+    private final Color BLANCO = Color.WHITE;
     private final Color NARANJA = new Color(255, 111, 0);
+    private final Color NARANJA_HOVER = new Color(255, 130, 20);
+    private final Color GRIS = new Color(55, 55, 55);
+    private final Color GRIS_HOVER = new Color(75, 75, 75);
+    private final Color ROJO_FONDO = new Color(105, 0, 0);
 
     public LoginFrame() {
         setTitle("Login - Sistema de Gestión Interno para Gimnasio");
-        setSize(980, 620);
-        setMinimumSize(new Dimension(900, 560));
+
+        setSize(1100, 680);
+        setMinimumSize(new Dimension(1100, 680));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setResizable(true);
 
-        construir();
+        construirInterfaz();
     }
 
-    private void construir() {
-        JPanel fondo = new JPanel(null) {
+    private void construirInterfaz() {
+        JPanel fondo = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
 
-                Graphics2D g2 = (Graphics2D) g.create();
+                Graphics2D g2 = (Graphics2D) g;
                 g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-                int w = getWidth();
-                int h = getHeight();
-
-                // Fondo rojo oscuro limpio
                 GradientPaint gp = new GradientPaint(
-                        0, 0, new Color(12, 12, 12),
-                        w, h, new Color(120, 10, 10));
+                        0, 0, new Color(15, 5, 5),
+                        getWidth(), getHeight(), ROJO_FONDO);
+
                 g2.setPaint(gp);
-                g2.fillRect(0, 0, w, h);
+                g2.fillRect(0, 0, getWidth(), getHeight());
 
-                // Sombra lateral izquierda para profundidad
-                GradientPaint sombraIzquierda = new GradientPaint(
-                        0, 0, new Color(0, 0, 0, 120),
-                        w / 2, 0, new Color(0, 0, 0, 0));
-                g2.setPaint(sombraIzquierda);
-                g2.fillRect(0, 0, w, h);
-
-                // Sombra inferior suave
-                GradientPaint sombraInferior = new GradientPaint(
-                        0, h - 180, new Color(0, 0, 0, 0),
-                        0, h, new Color(0, 0, 0, 80));
-                g2.setPaint(sombraInferior);
-                g2.fillRect(0, h - 180, w, 180);
-
-                // Línea decorativa inferior, como el diseño inicial
                 g2.setColor(new Color(255, 255, 255, 35));
-                g2.setStroke(new BasicStroke(2f));
-                g2.drawLine(0, h - 120, w, h - 170);
-
-                g2.dispose();
+                g2.drawLine(0, getHeight() - 90, getWidth(), getHeight() - 120);
             }
         };
 
-        JPanel card = new JPanel(null);
-        card.setBackground(new Color(12, 12, 12, 245));
-        card.setBounds(300, 55, 390, 490);
-        fondo.add(card);
+        JPanel centro = new JPanel(new GridBagLayout());
+        centro.setOpaque(false);
+        centro.setBorder(new EmptyBorder(25, 25, 25, 25));
 
-        JLabel titulo = new JLabel("<html><center>SISTEMA DE GESTIÓN<br>INTERNO PARA GIMNASIO</center></html>");
-        titulo.setForeground(Color.WHITE);
-        titulo.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        JPanel contenedorPrincipal = new JPanel(new GridLayout(1, 2, 0, 0));
+        contenedorPrincipal.setPreferredSize(new Dimension(900, 540));
+        contenedorPrincipal.setMinimumSize(new Dimension(900, 540));
+        contenedorPrincipal.setBackground(NEGRO);
+
+        JPanel panelIzquierdo = crearPanelLogin();
+        JPanel panelDerecho = crearPanelImagen();
+
+        contenedorPrincipal.add(panelIzquierdo);
+        contenedorPrincipal.add(panelDerecho);
+
+        centro.add(contenedorPrincipal);
+
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        footer.setOpaque(false);
+        footer.setBorder(new EmptyBorder(0, 25, 20, 0));
+
+        JLabel lblFooter = new JLabel(
+                "POWER GYM SYSTEM  |  Socios  •  Membresías  •  Asistencia  •  Inventario  •  Reportes");
+        lblFooter.setForeground(BLANCO);
+        lblFooter.setFont(new Font("Arial", Font.BOLD, 12));
+        footer.add(lblFooter);
+
+        fondo.add(centro, BorderLayout.CENTER);
+        fondo.add(footer, BorderLayout.SOUTH);
+
+        setContentPane(fondo);
+    }
+
+    private JPanel crearPanelLogin() {
+        JPanel panel = new JPanel(null);
+        panel.setBackground(NEGRO);
+
+        int anchoPanel = 450;
+        int anchoCampo = 280;
+        int altoCampo = 42;
+        int xCampo = (anchoPanel - anchoCampo) / 2;
+
+        JLabel titulo = new JLabel(
+                "<html><div style='text-align:center;'>SISTEMA DE GESTIÓN<br>INTERNO PARA GIMNASIO</div></html>");
+        titulo.setForeground(BLANCO);
+        titulo.setFont(new Font("Arial", Font.BOLD, 25));
         titulo.setHorizontalAlignment(SwingConstants.CENTER);
-        titulo.setBounds(20, 35, 350, 80);
-        card.add(titulo);
+        titulo.setBounds(0, 70, anchoPanel, 70);
+        panel.add(titulo);
 
         JLabel subtitulo = new JLabel("Acceso administrativo del sistema");
         subtitulo.setForeground(new Color(220, 220, 220));
-        subtitulo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        subtitulo.setFont(new Font("Arial", Font.PLAIN, 14));
         subtitulo.setHorizontalAlignment(SwingConstants.CENTER);
-        subtitulo.setBounds(25, 120, 340, 25);
-        card.add(subtitulo);
+        subtitulo.setBounds(0, 150, anchoPanel, 25);
+        panel.add(subtitulo);
 
-        JLabel lblUsuario = etiqueta("Usuario");
-        lblUsuario.setBounds(45, 165, 300, 22);
-        card.add(lblUsuario);
+        JLabel lblUsuario = new JLabel("Usuario");
+        lblUsuario.setForeground(BLANCO);
+        lblUsuario.setFont(new Font("Arial", Font.BOLD, 14));
+        lblUsuario.setHorizontalAlignment(SwingConstants.LEFT);
+        lblUsuario.setBounds(xCampo, 200, anchoCampo, 20);
+        panel.add(lblUsuario);
 
-        txtUsuario = campoTexto();
-        txtUsuario.setBounds(45, 190, 300, 42);
-        card.add(txtUsuario);
+        txtUsuario = new JTextField();
+        txtUsuario.setFont(new Font("Arial", Font.PLAIN, 15));
+        txtUsuario.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+        txtUsuario.setBounds(xCampo, 227, anchoCampo, altoCampo);
+        panel.add(txtUsuario);
 
-        JLabel lblClave = etiqueta("Contraseña");
-        lblClave.setBounds(45, 245, 300, 22);
-        card.add(lblClave);
+        JLabel lblClave = new JLabel("Contraseña");
+        lblClave.setForeground(BLANCO);
+        lblClave.setFont(new Font("Arial", Font.BOLD, 14));
+        lblClave.setHorizontalAlignment(SwingConstants.LEFT);
+        lblClave.setBounds(xCampo, 292, anchoCampo, 20);
+        panel.add(lblClave);
 
-        txtClave = campoPassword();
-        txtClave.setBounds(45, 270, 300, 42);
-        card.add(txtClave);
+        txtClave = new JPasswordField();
+        txtClave.setFont(new Font("Arial", Font.PLAIN, 15));
+        txtClave.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+        txtClave.setBounds(xCampo, 319, anchoCampo, altoCampo);
+        panel.add(txtClave);
 
-        JButton btnLogin = botonPrincipal("INICIAR SESIÓN");
-        btnLogin.setBounds(45, 342, 300, 48);
-        card.add(btnLogin);
+        JButton btnIngresar = crearBoton("INICIAR SESIÓN", NARANJA, NARANJA_HOVER);
+        btnIngresar.setBounds(xCampo, 390, anchoCampo, 48);
+        btnIngresar.addActionListener(e -> validarLogin());
+        panel.add(btnIngresar);
 
-        JButton btnCancelar = botonSecundario("CANCELAR");
-        btnCancelar.setBounds(45, 406, 300, 42);
-        card.add(btnCancelar);
-
-        JLabel pie = new JLabel(
-                "POWER GYM SYSTEM  |  Socios  •  Membresías  •  Asistencia  •  Inventario  •  Reportes");
-        pie.setForeground(Color.WHITE);
-        pie.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        pie.setBounds(25, 535, 850, 25);
-        fondo.add(pie);
-
-        fondo.addComponentListener(new java.awt.event.ComponentAdapter() {
-            @Override
-            public void componentResized(java.awt.event.ComponentEvent e) {
-                int x = (fondo.getWidth() - card.getWidth()) / 2;
-                int y = (fondo.getHeight() - card.getHeight()) / 2 - 10;
-
-                card.setLocation(x, Math.max(y, 25));
-                pie.setBounds(25, fondo.getHeight() - 45, 850, 25);
-            }
-        });
-
-        btnLogin.addActionListener(e -> login());
+        JButton btnCancelar = crearBoton("CANCELAR", GRIS, GRIS_HOVER);
+        btnCancelar.setBounds(xCampo, 453, anchoCampo, 48);
         btnCancelar.addActionListener(e -> System.exit(0));
-        getRootPane().setDefaultButton(btnLogin);
+        panel.add(btnCancelar);
 
-        setContentPane(fondo);
-
-        SwingUtilities.invokeLater(() -> txtUsuario.requestFocusInWindow());
+        return panel;
     }
 
-    private JLabel etiqueta(String texto) {
-        JLabel lbl = new JLabel(texto);
-        lbl.setForeground(Color.WHITE);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        return lbl;
+    private JPanel crearPanelImagen() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.BLACK);
+
+        URL rutaImagen = getClass().getResource("/images/personas.jpg");
+
+        if (rutaImagen != null) {
+            panel.add(new ImagenPanel(rutaImagen), BorderLayout.CENTER);
+        } else {
+            JLabel lblError = new JLabel(
+                    "<html><center>No se encontró la imagen<br>/images/personas.jpg</center></html>",
+                    SwingConstants.CENTER);
+            lblError.setForeground(Color.WHITE);
+            lblError.setFont(new Font("Arial", Font.BOLD, 18));
+            panel.add(lblError, BorderLayout.CENTER);
+        }
+
+        return panel;
     }
 
-    private JTextField campoTexto() {
-        JTextField campo = new JTextField();
-        campo.setUI(new BasicTextFieldUI());
-        campo.setOpaque(true);
-        campo.setEditable(true);
-        campo.setEnabled(true);
-        campo.setBackground(Color.WHITE);
-        campo.setForeground(Color.BLACK);
-        campo.setCaretColor(Color.BLACK);
-        campo.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        campo.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(230, 230, 230), 1),
-                BorderFactory.createEmptyBorder(6, 12, 6, 12)));
-        return campo;
-    }
-
-    private JPasswordField campoPassword() {
-        JPasswordField campo = new JPasswordField();
-        campo.setUI(new BasicPasswordFieldUI());
-        campo.setOpaque(true);
-        campo.setEditable(true);
-        campo.setEnabled(true);
-        campo.setBackground(Color.WHITE);
-        campo.setForeground(Color.BLACK);
-        campo.setCaretColor(Color.BLACK);
-        campo.setEchoChar('●');
-        campo.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        campo.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(230, 230, 230), 1),
-                BorderFactory.createEmptyBorder(6, 12, 6, 12)));
-        return campo;
-    }
-
-    private JButton botonPrincipal(String texto) {
+    private JButton crearBoton(String texto, Color colorBase, Color colorHover) {
         JButton btn = new JButton(texto);
-        btn.setUI(new BasicButtonUI());
-        btn.setBackground(NARANJA);
-        btn.setForeground(Color.WHITE);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 15));
         btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setOpaque(true);
+        btn.setForeground(BLANCO);
+        btn.setBackground(colorBase);
+        btn.setFont(new Font("Arial", Font.BOLD, 14));
+        btn.setBorder(BorderFactory.createEmptyBorder(14, 15, 14, 15));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setUI(new BasicButtonUI());
 
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                btn.setBackground(ROJO);
+                btn.setBackground(colorHover);
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                btn.setBackground(NARANJA);
+                btn.setBackground(colorBase);
             }
         });
 
         return btn;
     }
 
-    private JButton botonSecundario(String texto) {
-        JButton btn = new JButton(texto);
-        btn.setUI(new BasicButtonUI());
-        btn.setBackground(new Color(55, 55, 55));
-        btn.setForeground(Color.WHITE);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setOpaque(true);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    private void validarLogin() {
+        String usuario = txtUsuario.getText().trim();
+        String password = new String(txtClave.getPassword());
 
-        btn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                btn.setBackground(new Color(85, 85, 85));
-            }
+        if (usuario.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Ingrese el nombre de usuario.",
+                    "Validación",
+                    JOptionPane.WARNING_MESSAGE);
+            txtUsuario.requestFocus();
+            return;
+        }
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                btn.setBackground(new Color(55, 55, 55));
-            }
-        });
+        if (password.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Ingrese la contraseña.",
+                    "Validación",
+                    JOptionPane.WARNING_MESSAGE);
+            txtClave.requestFocus();
+            return;
+        }
 
-        return btn;
-    }
+        if (!PasswordUtil.validarPassword(password)) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "La contraseña debe tener entre 8 y 30 caracteres,\n" +
+                            "incluir una mayúscula, una minúscula, un número\n" +
+                            "y el carácter especial elegido: !",
+                    "Validación de contraseña",
+                    JOptionPane.WARNING_MESSAGE);
+            txtClave.requestFocus();
+            return;
+        }
 
-    private void login() {
         try {
-            String usuario = txtUsuario.getText().trim();
-            String clave = new String(txtClave.getPassword());
+            UsuarioDAO dao = new UsuarioDAO();
+            Usuario u = dao.login(usuario, password);
 
-            if (usuario.isEmpty() || clave.isEmpty()) {
-                SwingUtil.error(this, "Debe ingresar usuario y contraseña.");
+            if (u != null) {
+                new MainFrame(u).setVisible(true);
+                dispose();
+            } else {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "El usuario no existe, está inactivo o no tiene permiso de acceso.",
+                        "Acceso denegado",
+                        JOptionPane.ERROR_MESSAGE);
+                txtClave.setText("");
+                txtUsuario.requestFocus();
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Error al validar el acceso: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private static class ImagenPanel extends JPanel {
+
+        private final Image imagen;
+
+        public ImagenPanel(URL rutaImagen) {
+            this.imagen = new ImageIcon(rutaImagen).getImage();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+
+            if (imagen == null) {
                 return;
             }
 
-            Usuario u = new UsuarioDAO().login(usuario, clave);
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-            if (u == null) {
-                SwingUtil.error(this, "Credenciales incorrectas o usuario inactivo.");
-                return;
-            }
+            int panelAncho = getWidth();
+            int panelAlto = getHeight();
 
-            new MainFrame(u).setVisible(true);
-            dispose();
+            int imgAncho = imagen.getWidth(this);
+            int imgAlto = imagen.getHeight(this);
 
-        } catch (Exception ex) {
-            SwingUtil.error(this, "Error al iniciar sesión: " + ex.getMessage());
+            double escalaX = (double) panelAncho / imgAncho;
+            double escalaY = (double) panelAlto / imgAlto;
+            double escala = Math.max(escalaX, escalaY);
+
+            int nuevoAncho = (int) (imgAncho * escala);
+            int nuevoAlto = (int) (imgAlto * escala);
+
+            int x = (panelAncho - nuevoAncho) / 2;
+            int y = (panelAlto - nuevoAlto) / 2;
+
+            g2.drawImage(imagen, x, y, nuevoAncho, nuevoAlto, this);
+            g2.dispose();
         }
     }
 }
